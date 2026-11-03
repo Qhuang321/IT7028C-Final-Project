@@ -1,0 +1,20 @@
+
+name: Retail Application CD
+
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-kubernetes:
+    runs-on: [self-hosted, Linux, X64, retail-deploy]
+
+    steps:
+      - name: Check Kubernetes context
+        run: kubectl config current-context
+
+      - name: Check retail application
+        run: kubectl get deployment retail-app -n default
