@@ -4,20 +4,20 @@ on:
     branches: [develop]
 permissions:
   contents: read
-  pakages: write
+  packages: write
 jobs:
   publish:
     runs-on: ubuntu-latest
-     steps:
-       - name: Checkout repository
-         uses: actions/checkout@v6
-       - name: Log in to GHCR
-         uses: docker/login-action@v4
-         with: 
-           registry: ghcr.io
-           username: ${{ github.actor}}
-           password: ${{ secrets.GITHUB_TOKEN }}
-       - name: Build Docker image
-         run: docker build -t ghcr.io/qhuang321/retail-app:develop .
-       - name: Publish Docker image
-          run: docker push ghcr.io/qhuang321/retail-app:develop
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with: 
+          registry: ghcr.io
+          username: ${{ github.actor}}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Docker image
+        run: docker build -t ghcr.io/qhuang321/retail-app:develop .
+      - name: Publish Docker image
+        run: docker push ghcr.io/qhuang321/retail-app:develop
