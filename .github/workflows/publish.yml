@@ -1,0 +1,84 @@
+
+name: Publish Retail Image to GHCR
+
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: retail-pipeline-develop
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build test image
+        run: docker build -t retail-app:test .
+
+      - name: Run and test application
+        run: |
+          docker run -d -p 8080:80 --name retail-test retail-app:test
+          for i in $(seq 1 20); do
+            if curl --fail --silent http://localhost:8080 | grep -q "Retail Technology Cloud Application"; then
+              echo "Application test passed"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs retail-test
+          exit 1
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ghcr.io/qhuang321/retail-app:develop \
+            -t ghcr.io/qhuang321/retail-app:${{ github.sha }} .
+
+      - name: Publish Docker images
+        run: |
+          docker push ghcr.io/qhuang321/retail-app:develop
+          docker push ghcr.io/qhuang321/retail-app:${{ github.sha }}
+
+  deploy:
+    needs: publish
+    runs-on: [self-hosted, Linux, X64, retail-deploy]
+    permissions:
+      contents: read
+    steps:
+      - name: Verify Kubernetes context
+        run: |
+          test "$(kubectl config current-context)" = "kind-cloud-admi"
+
+      - name: Deploy new image
+        run: |
+          kubectl set image deployment/retail-app \
+            retail-app=ghcr.io/qhuang321/retail-app:${{ github.sha }} \
+            -n default
+
+      - name: Verify Kubernetes rollout
+        run: |
+          kubectl rollout status deployment/retail-app \
+            -n default --timeout=180s
+          kubectl get deployment retail-app -n default
